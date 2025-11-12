@@ -219,6 +219,15 @@
       75% { transform: translateX(8px); }
     }
 
+    @keyframes flashBg {
+      0%, 100% {
+        opacity: 1;
+      }
+      50% {
+        opacity: 0.6;
+      }
+    }
+
     button {
       padding: 0.8em 2em;
       border: none;
@@ -332,7 +341,7 @@ inputTime.addEventListener('input', function() {
   if (!val) {
     tip.textContent = '';
     tip.style.color = '#888';
-    inputTime.style.borderColor = '#bbb';
+    inputTime.style.borderColor = '#ddd';
     return;
   }
   const sec = parseTime(val);
@@ -447,7 +456,7 @@ function addTimer(targetSec) {
 function updateTimers() {
   const now = Date.now();
   for (let timer of timers) {
-    if (timer.finished) continue;
+    if (timer.finished || timer.removed) continue;
     let remain = Math.max(0, Math.round((timer.target - now)/1000));
     timer.timeBox.textContent = `剩餘時間: ${secToHHMMSS(remain)}`;
     timer.timeBox.classList.remove('warn','expired');
@@ -513,6 +522,8 @@ document.getElementById('add-timer-form').addEventListener('submit', function(e)
   }
   addTimer(totalSec);
   document.getElementById('input-time').value = '';
+  tip.textContent = '';
+  inputTime.style.borderColor = '#ddd';
 
 });
 </script>
