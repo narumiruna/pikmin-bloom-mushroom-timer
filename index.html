@@ -2,7 +2,9 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
-  <title>多組倒數計時器</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Pikmin Bloom 蘑菇計時器 - 支援多組倒數計時，自動計算重生與緩衝時間，提供音效與瀏覽器通知提醒">
+  <title>🍄 Pikmin Bloom 蘑菇計時器 - 多組倒數計時工具</title>
   <style>
     * {
       margin: 0;
@@ -302,6 +304,90 @@
       box-shadow: 0 6px 16px rgba(76, 175, 80, 0.4) !important;
     }
 
+    .usage-section {
+      background: rgba(255, 255, 255, 0.95);
+      padding: 1.5em;
+      border-radius: 16px;
+      margin-bottom: 1.5em;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+      backdrop-filter: blur(10px);
+    }
+
+    .usage-section h2 {
+      color: #667eea;
+      font-size: 1.3em;
+      margin-bottom: 1em;
+      display: flex;
+      align-items: center;
+      gap: 0.5em;
+    }
+
+    .usage-section ol {
+      margin-left: 1.5em;
+      color: #555;
+    }
+
+    .usage-section li {
+      margin-bottom: 0.8em;
+      line-height: 1.6;
+    }
+
+    .usage-section strong {
+      color: #667eea;
+    }
+
+    .usage-section code {
+      background: #f0f4ff;
+      padding: 0.2em 0.5em;
+      border-radius: 4px;
+      border: 1px solid #d0d8ff;
+      font-family: 'Courier New', monospace;
+      font-size: 0.9em;
+      color: #333;
+    }
+
+    .usage-section ul {
+      margin-left: 1.5em;
+      margin-top: 0.3em;
+    }
+
+    .usage-section ul li {
+      margin-bottom: 0.4em;
+    }
+
+    .toggle-usage {
+      background: rgba(255, 255, 255, 0.95);
+      border: 2px solid #667eea;
+      color: #667eea;
+      padding: 0.6em 1.5em;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 0.95em;
+      margin-bottom: 1.5em;
+      transition: all 0.3s;
+      display: block;
+      width: 100%;
+      text-align: left;
+      font-weight: 600;
+    }
+
+    .toggle-usage:hover {
+      background: #667eea;
+      color: white;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+
+    .usage-content {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease-out;
+    }
+
+    .usage-content.expanded {
+      max-height: 1000px;
+    }
+
   </style>
 </head>
 <body>
@@ -312,6 +398,50 @@
       完整範例如：<span>1:23:40</span>、<span>5:10</span>、<span>30</span><br>
       系統將自動加上重生(分鐘)與緩衝(秒)。
     </div>
+
+    <button class="toggle-usage" onclick="toggleUsage()">
+      📖 使用說明 <span id="toggle-icon">▼</span>
+    </button>
+
+    <div class="usage-content" id="usage-content">
+      <div class="usage-section">
+        <h2>📖 使用方法</h2>
+        <ol>
+          <li>
+            <strong>輸入時間</strong>
+            <ul>
+              <li>支援三種格式：<code>hh:mm:ss</code>（如 1:50:30）、<code>mm:ss</code>（如 5:10）、<code>ss</code>（如 30）</li>
+              <li>系統會自動驗證格式並即時顯示解析結果</li>
+            </ul>
+          </li>
+          <li>
+            <strong>設定重生與緩衝時間</strong>
+            <ul>
+              <li><strong>重生時間（分鐘）</strong>：蘑菇重生所需的時間</li>
+              <li><strong>緩衝時間（秒）</strong>：提前提醒的時間</li>
+              <li>最終計時 = 輸入時間 + 重生時間 - 緩衝時間</li>
+            </ul>
+          </li>
+          <li>
+            <strong>管理計時器</strong>
+            <ul>
+              <li>點擊 ➕ <strong>加入倒數</strong> 新增計時器</li>
+              <li>每組計時器有獨立的顏色標籤</li>
+              <li>點擊 ✕ 按鈕可移除不需要的計時器</li>
+            </ul>
+          </li>
+          <li>
+            <strong>計時提醒</strong>
+            <ul>
+              <li>剩餘 ≤ 15 秒：橘色警告並閃爍</li>
+              <li>時間到：紅色高亮、播放鈴聲、瀏覽器通知</li>
+              <li>可點擊 🔔 <strong>重播鈴聲</strong> 再次聆聽提示音</li>
+            </ul>
+          </li>
+        </ol>
+      </div>
+    </div>
+
     <form id="add-timer-form">
       <label>
         輸入時間 (hh:mm:ss):
@@ -333,6 +463,14 @@
     <div id="timers"></div>
   </div>
 <script>
+// 展開/收合使用說明
+function toggleUsage() {
+  const content = document.getElementById('usage-content');
+  const icon = document.getElementById('toggle-icon');
+  content.classList.toggle('expanded');
+  icon.textContent = content.classList.contains('expanded') ? '▲' : '▼';
+}
+
 // 即時格式檢查與提示
 const inputTime = document.getElementById('input-time');
 const tip = document.getElementById('input-format-tip');
