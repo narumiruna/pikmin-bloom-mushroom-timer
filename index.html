@@ -468,6 +468,107 @@ const REPEAT_BEEP_INTERVAL = 3000; // 毫秒
 const WARNING_THRESHOLD = 15; // 秒
 
 const timers = [];
+const STORAGE_KEY = 'pikmin-bloom-timers';
+const MAX_STORAGE_AGE_HOURS = 168; // 超過 1 週的計時器不載入
+
+// 將計時器儲存到 localStorage
+function saveTimersToStorage() {
+  try {
+    const timersToSave = timers
+      .filter(timer => !timer.removed)
+      .map(timer => ({
+        target: timer.target,
+        original: timer.original,
+        finished: timer.finished,
+        repeatBeep: timer.repeatBeep
+      }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(timersToSave));
+  } catch (e) {
+    console.error('儲存計時器失敗:', e);
+  }
+}
+
+// 從 localStorage 載入計時器
+function loadTimersFromStorage() {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (!stored) return;
+
+    const savedTimers = JSON.parse(stored);
+    const now = Date.now();
+    const maxAge = MAX_STORAGE_AGE_HOURS * 3600 * 1000;
+
+    savedTimers.forEach(savedTimer => {
+      // 過濾掉太舊的計時器
+      if (now - savedTimer.target > maxAge) return;
+
+      // 重建計時器
+      const remainingMs = savedTimer.target - now;
+      const remainingSec = Math.max(0, Math.ceil(remainingMs / 1000));
+
+      const timer = {
+        target: savedTimer.target,
+        original: savedTimer.original,
+        finished: savedTimer.finished || remainingMs <= 0,
+        element: null,
+        repeatBeep: savedTimer.repeatBeep,
+        beepInterval: null
+      };
+      timers.push(timer);
+
+      // 建立 DOM 元素
+      const timerIdx = timers.length;
+      const elem = document.createElement('div');
+      elem.className = 'timer';
+      if (timer.finished) {
+        elem.classList.add('finished');
+      }
+      elem.style.setProperty('--timer-bg', TIMER_COLORS[(timerIdx - 1) % TIMER_COLORS.length]);
+
+      // 新增標籤區塊
+      const label = document.createElement('span');
+      label.className = 'timer-label';
+      label.textContent = `#${timerIdx}`;
+      elem.appendChild(label);
+
+      // 新增移除按鈕
+      const delBtn = document.createElement('button');
+      delBtn.textContent = '✕';
+      delBtn.title = '移除計時';
+      delBtn.style.marginRight = '0.5em';
+      delBtn.onclick = () => {
+        if (timer.beepInterval) {
+          clearInterval(timer.beepInterval);
+          timer.beepInterval = null;
+        }
+        elem.remove();
+        timer.removed = true;
+        saveTimersToStorage();
+      };
+      elem.appendChild(delBtn);
+
+      const timeBox = document.createElement('span');
+      timeBox.className = 'timer-time';
+      elem.appendChild(timeBox);
+      timer.element = elem;
+      timer.timeBox = timeBox;
+      document.getElementById('timers').appendChild(elem);
+
+      // 如果已經結束且有重複鈴聲，重新設定 interval
+      if (timer.finished && timer.repeatBeep) {
+        timer.beepInterval = setInterval(() => {
+          if (!timer.removed) {
+            playBeep();
+          } else {
+            clearInterval(timer.beepInterval);
+          }
+        }, REPEAT_BEEP_INTERVAL);
+      }
+    });
+  } catch (e) {
+    console.error('載入計時器失敗:', e);
+  }
+}
 
 // 展開/收合使用說明
 function toggleUsage() {
@@ -607,6 +708,7 @@ function addTimer(targetSec, repeatBeep) {
     }
     elem.remove();
     timer.removed = true;
+    saveTimersToStorage();
   };
   elem.appendChild(delBtn);
 
@@ -616,6 +718,7 @@ function addTimer(targetSec, repeatBeep) {
   timer.element = elem;
   timer.timeBox = timeBox;
   document.getElementById('timers').appendChild(elem);
+  saveTimersToStorage();
 }
 
 function updateTimers() {
@@ -681,6 +784,9 @@ function sendNotification(timer) {
     });
   }
 }
+
+// 頁面載入時從 localStorage 載入計時器
+loadTimersFromStorage();
 
 setInterval(updateTimers, 250);
 
