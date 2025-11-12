@@ -8,7 +8,7 @@ Pikmin Bloom 蘑菇計時器 - 提供多組倒數計時的網頁工具，支援 
 ## 架構與技術選擇
 - **單檔案架構**：所有 HTML、CSS、JavaScript 集中於 `index.html`，純前端實作，無依賴套件
 - **原生技術棧**：使用原生 JavaScript（ES6+）與 HTML5 API，不使用任何框架或建置工具
-- **Web Audio API**：使用 `AudioContext` 與 `OscillatorNode` 產生鈴聲（三連音：880Hz、1170Hz、659Hz）
+- **Web Audio API**：使用 `AudioContext`、`OscillatorNode` 與 `GainNode` 產生和諧鈴聲（C 大調和弦：C5-E5-G5-C6，搭配淡入淡出效果）
 - **通知系統**：整合 Web Notifications API，於計時結束時推送瀏覽器通知
 
 ## 開發方式
@@ -69,7 +69,7 @@ totalSec = baseSec + (reviveMin × 60) - bufferSec
 3. 調整 `addTimer()` 與 `updateTimers()` 邏輯以顯示新欄位
 
 ### 調整鈴聲
-修改 `playBeep()` 中的 `beepSeq` 陣列（index.html:378）與持續時間參數（index.html:379）
+修改 `playBeep()` 中的 `beepSeq` 陣列（index.html:529-534），每個音符包含頻率（freq）與持續時間（dur）。可調整音階、持續時間、間隔（gap）或音量（gainNode.gain 參數）
 
 ### 修改警告閾值
 調整 `updateTimers()` 中的判斷式（index.html:448）：將 `remain <= 15` 改為其他秒數

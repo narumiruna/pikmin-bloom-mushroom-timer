@@ -290,20 +290,6 @@
       border-color: #ef9a9a;
     }
 
-    .replay-button {
-      background: linear-gradient(135deg, #4caf50 0%, #45a049 100%) !important;
-      color: white !important;
-      border: none !important;
-      box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
-      padding: 0.6em 1.5em !important;
-      font-size: 0.7em !important;
-    }
-
-    .replay-button:hover {
-      transform: translateY(-2px) scale(1.05) !important;
-      box-shadow: 0 6px 16px rgba(76, 175, 80, 0.4) !important;
-    }
-
     .usage-section {
       background: rgba(255, 255, 255, 0.95);
       padding: 1.5em;
@@ -420,6 +406,7 @@
             <ul>
               <li><strong>重生時間（分鐘）</strong>：蘑菇重生所需的時間</li>
               <li><strong>緩衝時間（秒）</strong>：提前提醒的時間</li>
+              <li><strong>重複鈴聲</strong>：勾選後，時間到時會每 3 秒重複播放鈴聲，直到移除計時器</li>
               <li>最終計時 = 輸入時間 + 重生時間 - 緩衝時間</li>
             </ul>
           </li>
@@ -436,7 +423,7 @@
             <ul>
               <li>剩餘 ≤ 15 秒：橘色警告並閃爍</li>
               <li>時間到：紅色高亮、播放鈴聲、瀏覽器通知</li>
-              <li>可點擊 🔔 <strong>重播鈴聲</strong> 再次聆聽提示音</li>
+              <li>如果勾選了「重複鈴聲」，會持續播放直到移除計時器</li>
             </ul>
           </li>
         </ol>
@@ -457,6 +444,10 @@
       <label>
         緩衝時間(秒):
         <input type="number" id="buffer-time" min="0" value="10">
+      </label>
+      <label style="display: inline-flex; flex-direction: row; align-items: center; gap: 0.5em;">
+        <input type="checkbox" id="repeat-beep" style="width: auto; margin: 0;">
+        <span>重複鈴聲（直到移除計時器）</span>
       </label>
       <button type="submit">➕ 加入倒數</button>
       <div id="input-error-tip"></div>
@@ -525,27 +516,48 @@ function secToHHMMSS(sec) {
 }
 
 function playBeep() {
-  const beepSeq = [880, 1170, 659];
-  const beepDur = 0.2, gap = 0.12;
+  // 使用 C 大調和弦音階，更加悅耳和諧
+  const beepSeq = [
+    { freq: 523.25, dur: 0.15 },  // C5
+    { freq: 659.25, dur: 0.15 },  // E5
+    { freq: 783.99, dur: 0.15 },  // G5
+    { freq: 1046.5, dur: 0.3 }    // C6 (延長作為結尾)
+  ];
+  const gap = 0.08;
+
   try {
-    const ctx = window.AudioContext ? new AudioContext() : null;
-    if (!ctx) throw new Error();
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
     let t = ctx.currentTime;
-    beepSeq.forEach(f => {
+
+    beepSeq.forEach((note, index) => {
+      // 創建振盪器
       let osc = ctx.createOscillator();
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(f, t);
-      osc.connect(ctx.destination);
+      osc.frequency.setValueAtTime(note.freq, t);
+
+      // 創建音量控制節點，添加淡入淡出效果
+      let gainNode = ctx.createGain();
+      gainNode.gain.setValueAtTime(0, t);
+      gainNode.gain.linearRampToValueAtTime(0.3, t + 0.02);  // 快速淡入
+      gainNode.gain.linearRampToValueAtTime(0.3, t + note.dur - 0.05);  // 保持
+      gainNode.gain.linearRampToValueAtTime(0, t + note.dur);  // 淡出
+
+      // 連接節點
+      osc.connect(gainNode);
+      gainNode.connect(ctx.destination);
+
+      // 播放
       osc.start(t);
-      osc.stop(t + beepDur);
-      t += beepDur + gap;
+      osc.stop(t + note.dur);
+
+      t += note.dur + gap;
     });
   } catch(e) {
     alert('鈴聲不支援，請自行注意時間！');
   }
 }
 
-function addTimer(targetSec) {
+function addTimer(targetSec, repeatBeep) {
   const timerIdx = timers.length + 1;
   const colors = [
     'linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 100%)',
@@ -559,7 +571,9 @@ function addTimer(targetSec) {
     target: Date.now() + targetSec * 1000,
     original: targetSec,
     finished: false,
-    element: null
+    element: null,
+    repeatBeep: repeatBeep,
+    beepInterval: null
     // 可擴充: id, label
   };
   timers.push(timer);
@@ -580,6 +594,11 @@ function addTimer(targetSec) {
   delBtn.title = '移除計時';
   delBtn.style.marginRight = '0.5em';
   delBtn.onclick = function() {
+    // 停止重複鈴聲
+    if (timer.beepInterval) {
+      clearInterval(timer.beepInterval);
+      timer.beepInterval = null;
+    }
     elem.remove();
     timer.removed = true;
   };
@@ -612,6 +631,18 @@ function updateTimers() {
       timer.element.classList.add('finished');
       timer.element.style.animation = 'flashBg 1.2s linear 2';
       playBeep();
+
+      // 如果勾選重複鈴聲，則每 3 秒重複播放
+      if (timer.repeatBeep) {
+        timer.beepInterval = setInterval(function() {
+          if (!timer.removed) {
+            playBeep();
+          } else {
+            clearInterval(timer.beepInterval);
+          }
+        }, 3000);
+      }
+
       // 跳出瀏覽器通知提醒
       if (window.Notification) {
         if (Notification.permission === 'granted') {
@@ -630,13 +661,6 @@ function updateTimers() {
           });
         }
       }
-      // 新增重播鈴聲按鈕
-      let btn = document.createElement('button');
-      btn.textContent = '🔔 重播鈴聲';
-      btn.className = 'replay-button';
-      btn.style.marginLeft = '1em';
-      btn.onclick = playBeep;
-      timer.element.appendChild(btn);
     }
   }
 }
@@ -648,6 +672,7 @@ document.getElementById('add-timer-form').addEventListener('submit', function(e)
   const input = document.getElementById('input-time').value;
   const reviveMin = Number(document.getElementById('revive-time').value) || 0;
   const bufferSec = Number(document.getElementById('buffer-time').value) || 0;
+  const repeatBeep = document.getElementById('repeat-beep').checked;
   let errorTip = document.getElementById('input-error-tip');
   errorTip.textContent = '';
   let baseSec = parseTime(input);
@@ -661,7 +686,7 @@ document.getElementById('add-timer-form').addEventListener('submit', function(e)
     errorTip.textContent = '時間需大於0！';
     return;
   }
-  addTimer(totalSec);
+  addTimer(totalSec, repeatBeep);
   document.getElementById('input-time').value = '';
   tip.textContent = '';
   inputTime.style.borderColor = '#ddd';
