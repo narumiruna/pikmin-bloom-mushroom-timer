@@ -395,7 +395,7 @@
     <h1>🍄 多組倒數計時器</h1>
     <div class="info-box">
       請輸入欲倒數時間，可用 <b>hh:mm:ss</b>、<b>mm:ss</b> 或 <b>ss</b> 格式。<br>
-      完整範例如：<span>1:23:40</span>、<span>5:10</span>、<span>30</span><br>
+      完整範例如：<span>1:23:40</span>、<span>5:10</span>、<span>30</span> 或 <span>1 23 40</span>（空白也可以）<br>
       系統將自動加上重生(分鐘)與緩衝(秒)。
     </div>
 
@@ -411,6 +411,7 @@
             <strong>輸入時間</strong>
             <ul>
               <li>支援三種格式：<code>hh:mm:ss</code>（如 1:50:30）、<code>mm:ss</code>（如 5:10）、<code>ss</code>（如 30）</li>
+              <li>可使用冒號或空白分隔：<code>1:50:30</code> 或 <code>1 50 30</code> 都可以</li>
               <li>系統會自動驗證格式並即時顯示解析結果</li>
             </ul>
           </li>
@@ -446,7 +447,7 @@
       <label>
         輸入時間 (hh:mm:ss):
         <input type="text" id="input-time" required
-          placeholder="輸入 hh:mm:ss, mm:ss 或 ss 例：1:50:30、5:10、30">
+          placeholder="例：1:50:30、5:10、30 或 1 50 30">
         <span id="input-format-tip"></span>
       </label>
       <label>
@@ -484,7 +485,7 @@ inputTime.addEventListener('input', function() {
   }
   const sec = parseTime(val);
   if (sec === null) {
-    tip.textContent = '格式錯誤，請輸入 hh:mm:ss 或 mm:ss、ss';
+    tip.textContent = '格式錯誤，請輸入 hh:mm:ss、mm:ss 或 ss（可用空白分隔）';
     tip.style.color = 'red';
     inputTime.style.borderColor = 'red';
   } else if (sec === 0) {
@@ -502,7 +503,8 @@ const timers = [];
 
 function parseTime(str) {
   // 支援 ss, mm:ss, hh:mm:ss，自動忽略頭尾空白與非法輸入
-  const safe = str.trim().replace(/^:+|:+$/g, "");
+  // 允許使用空白代替冒號，例如 "1 50 20" 等於 "1:50:20"
+  const safe = str.trim().replace(/\s+/g, ':').replace(/^:+|:+$/g, "");
   const parts = safe.split(':').map(x => x.trim()).map(Number);
   if (parts.length === 1 && !isNaN(parts[0]) && parts[0] >= 0) {
     return parts[0];
@@ -649,7 +651,7 @@ document.getElementById('add-timer-form').addEventListener('submit', function(e)
   errorTip.textContent = '';
   let baseSec = parseTime(input);
   if (baseSec == null) {
-    errorTip.textContent = '格式錯誤，請輸入 hh:mm:ss (例: 1:50:30)';
+    errorTip.textContent = '格式錯誤，請輸入 hh:mm:ss (例: 1:50:30 或 1 50 30)';
     return;
   }
   // 自訂重生+緩衝時間
