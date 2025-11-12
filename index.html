@@ -455,6 +455,20 @@
     <div id="timers"></div>
   </div>
 <script>
+// 常數定義
+const TIMER_COLORS = [
+  'linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 100%)',
+  'linear-gradient(135deg, #fff9c4 0%, #fff59d 100%)',
+  'linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%)',
+  'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)',
+  'linear-gradient(135deg, #fce4ec 0%, #f8bbd0 100%)',
+  'linear-gradient(135deg, #f1f8e9 0%, #dcedc8 100%)'
+];
+const REPEAT_BEEP_INTERVAL = 3000; // 毫秒
+const WARNING_THRESHOLD = 15; // 秒
+
+const timers = [];
+
 // 展開/收合使用說明
 function toggleUsage() {
   const content = document.getElementById('usage-content');
@@ -463,34 +477,42 @@ function toggleUsage() {
   icon.textContent = content.classList.contains('expanded') ? '▲' : '▼';
 }
 
-// 即時格式檢查與提示
+// 輔助函數：設定輸入框驗證狀態
 const inputTime = document.getElementById('input-time');
 const tip = document.getElementById('input-format-tip');
-inputTime.addEventListener('input', function() {
-  const val = inputTime.value.trim();
-  if (!val) {
+
+function setInputValidation(isValid, message = '') {
+  if (isValid === null) {
     tip.textContent = '';
     tip.style.color = '#888';
     inputTime.style.borderColor = '#ddd';
+  } else if (isValid) {
+    tip.textContent = message;
+    tip.style.color = 'green';
+    inputTime.style.borderColor = 'green';
+  } else {
+    tip.textContent = message;
+    tip.style.color = 'red';
+    inputTime.style.borderColor = 'red';
+  }
+}
+
+// 即時格式檢查與提示
+inputTime.addEventListener('input', function() {
+  const val = inputTime.value.trim();
+  if (!val) {
+    setInputValidation(null);
     return;
   }
   const sec = parseTime(val);
   if (sec === null) {
-    tip.textContent = '格式錯誤，請輸入 hh:mm:ss、mm:ss 或 ss（可用空白分隔）';
-    tip.style.color = 'red';
-    inputTime.style.borderColor = 'red';
+    setInputValidation(false, '格式錯誤，請輸入 hh:mm:ss、mm:ss 或 ss（可用空白分隔）');
   } else if (sec === 0) {
-    tip.textContent = '時間不可為 0';
-    tip.style.color = 'red';
-    inputTime.style.borderColor = 'red';
+    setInputValidation(false, '時間不可為 0');
   } else {
-    tip.textContent = '格式正確︰' + secToHHMMSS(sec);
-    tip.style.color = 'green';
-    inputTime.style.borderColor = 'green';
+    setInputValidation(true, '格式正確︰' + secToHHMMSS(sec));
   }
 });
-
-const timers = [];
 
 function parseTime(str) {
   // 支援 ss, mm:ss, hh:mm:ss，自動忽略頭尾空白與非法輸入
@@ -506,7 +528,6 @@ function parseTime(str) {
   }
   return null;
 }
-
 
 function secToHHMMSS(sec) {
   let h = Math.floor(sec / 3600);
@@ -529,24 +550,19 @@ function playBeep() {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     let t = ctx.currentTime;
 
-    beepSeq.forEach((note, index) => {
-      // 創建振盪器
-      let osc = ctx.createOscillator();
+    beepSeq.forEach((note) => {
+      const osc = ctx.createOscillator();
       osc.type = 'sine';
       osc.frequency.setValueAtTime(note.freq, t);
 
-      // 創建音量控制節點，添加淡入淡出效果
-      let gainNode = ctx.createGain();
+      const gainNode = ctx.createGain();
       gainNode.gain.setValueAtTime(0, t);
-      gainNode.gain.linearRampToValueAtTime(0.3, t + 0.02);  // 快速淡入
-      gainNode.gain.linearRampToValueAtTime(0.3, t + note.dur - 0.05);  // 保持
-      gainNode.gain.linearRampToValueAtTime(0, t + note.dur);  // 淡出
+      gainNode.gain.linearRampToValueAtTime(0.3, t + 0.02);
+      gainNode.gain.linearRampToValueAtTime(0.3, t + note.dur - 0.05);
+      gainNode.gain.linearRampToValueAtTime(0, t + note.dur);
 
-      // 連接節點
       osc.connect(gainNode);
       gainNode.connect(ctx.destination);
-
-      // 播放
       osc.start(t);
       osc.stop(t + note.dur);
 
@@ -559,42 +575,32 @@ function playBeep() {
 
 function addTimer(targetSec, repeatBeep) {
   const timerIdx = timers.length + 1;
-  const colors = [
-    'linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 100%)',
-    'linear-gradient(135deg, #fff9c4 0%, #fff59d 100%)',
-    'linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%)',
-    'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)',
-    'linear-gradient(135deg, #fce4ec 0%, #f8bbd0 100%)',
-    'linear-gradient(135deg, #f1f8e9 0%, #dcedc8 100%)'
-  ];
   const timer = {
     target: Date.now() + targetSec * 1000,
     original: targetSec,
     finished: false,
     element: null,
-    repeatBeep: repeatBeep,
+    repeatBeep,
     beepInterval: null
-    // 可擴充: id, label
   };
   timers.push(timer);
 
-  let elem = document.createElement('div');
+  const elem = document.createElement('div');
   elem.className = 'timer';
-  elem.style.setProperty('--timer-bg', colors[(timerIdx-1)%colors.length]);
+  elem.style.setProperty('--timer-bg', TIMER_COLORS[(timerIdx - 1) % TIMER_COLORS.length]);
 
   // 新增標籤區塊
-  let label = document.createElement('span');
+  const label = document.createElement('span');
   label.className = 'timer-label';
   label.textContent = `#${timerIdx}`;
   elem.appendChild(label);
 
   // 新增移除按鈕
-  let delBtn = document.createElement('button');
+  const delBtn = document.createElement('button');
   delBtn.textContent = '✕';
   delBtn.title = '移除計時';
   delBtn.style.marginRight = '0.5em';
-  delBtn.onclick = function() {
-    // 停止重複鈴聲
+  delBtn.onclick = () => {
     if (timer.beepInterval) {
       clearInterval(timer.beepInterval);
       timer.beepInterval = null;
@@ -604,7 +610,7 @@ function addTimer(targetSec, repeatBeep) {
   };
   elem.appendChild(delBtn);
 
-  let timeBox = document.createElement('span');
+  const timeBox = document.createElement('span');
   timeBox.className = 'timer-time';
   elem.appendChild(timeBox);
   timer.element = elem;
@@ -614,83 +620,98 @@ function addTimer(targetSec, repeatBeep) {
 
 function updateTimers() {
   const now = Date.now();
-  for (let timer of timers) {
+  for (const timer of timers) {
     if (timer.finished || timer.removed) continue;
-    let remainMs = timer.target - now;
-    let remain = remainMs > 0 ? Math.ceil(remainMs / 1000) : 0;
+
+    const remainMs = timer.target - now;
+    const remain = remainMs > 0 ? Math.ceil(remainMs / 1000) : 0;
+
     timer.timeBox.textContent = `剩餘時間: ${secToHHMMSS(remain)}`;
-    timer.timeBox.classList.remove('warn','expired');
+    timer.timeBox.classList.remove('warn', 'expired');
+
     if (remain <= 0) {
       timer.timeBox.classList.add('expired');
-    } else if (remain <= 15) {
+    } else if (remain <= WARNING_THRESHOLD) {
       timer.timeBox.classList.add('warn');
     }
+
     if (remainMs <= 0 && !timer.finished) {
-      timer.finished = true;
-      timer.timeBox.textContent = '時間到！';
-      timer.element.classList.add('finished');
-      timer.element.style.animation = 'flashBg 1.2s linear 2';
-      playBeep();
-
-      // 如果勾選重複鈴聲，則每 3 秒重複播放
-      if (timer.repeatBeep) {
-        timer.beepInterval = setInterval(function() {
-          if (!timer.removed) {
-            playBeep();
-          } else {
-            clearInterval(timer.beepInterval);
-          }
-        }, 3000);
-      }
-
-      // 跳出瀏覽器通知提醒
-      if (window.Notification) {
-        if (Notification.permission === 'granted') {
-          new Notification(`第${Array.from(document.querySelectorAll('.timer')).indexOf(timer.element)+1}組計時已結束！`, {
-            body: '請注意進度或執行操作',
-            icon: '' // 可自訂 icon
-          });
-        } else if (Notification.permission !== 'denied') {
-          Notification.requestPermission().then(function(p) {
-            if (p === 'granted') {
-              new Notification(`第${Array.from(document.querySelectorAll('.timer')).indexOf(timer.element)+1}組計時已結束！`, {
-                body: '請注意進度或執行操作',
-                icon: ''
-              });
-            }
-          });
-        }
-      }
+      handleTimerFinish(timer);
     }
+  }
+}
+
+function handleTimerFinish(timer) {
+  timer.finished = true;
+  timer.timeBox.textContent = '時間到！';
+  timer.element.classList.add('finished');
+  timer.element.style.animation = 'flashBg 1.2s linear 2';
+  playBeep();
+
+  // 如果勾選重複鈴聲，則持續播放
+  if (timer.repeatBeep) {
+    timer.beepInterval = setInterval(() => {
+      if (!timer.removed) {
+        playBeep();
+      } else {
+        clearInterval(timer.beepInterval);
+      }
+    }, REPEAT_BEEP_INTERVAL);
+  }
+
+  // 跳出瀏覽器通知提醒
+  sendNotification(timer);
+}
+
+function sendNotification(timer) {
+  if (!window.Notification) return;
+
+  const timerIndex = Array.from(document.querySelectorAll('.timer')).indexOf(timer.element) + 1;
+  const notificationOptions = {
+    body: '請注意進度或執行操作'
+  };
+
+  if (Notification.permission === 'granted') {
+    new Notification(`第${timerIndex}組計時已結束！`, notificationOptions);
+  } else if (Notification.permission !== 'denied') {
+    Notification.requestPermission().then((permission) => {
+      if (permission === 'granted') {
+        new Notification(`第${timerIndex}組計時已結束！`, notificationOptions);
+      }
+    });
   }
 }
 
 setInterval(updateTimers, 250);
 
-document.getElementById('add-timer-form').addEventListener('submit', function(e) {
+document.getElementById('add-timer-form').addEventListener('submit', (e) => {
   e.preventDefault();
+
   const input = document.getElementById('input-time').value;
   const reviveMin = Number(document.getElementById('revive-time').value) || 0;
   const bufferSec = Number(document.getElementById('buffer-time').value) || 0;
   const repeatBeep = document.getElementById('repeat-beep').checked;
-  let errorTip = document.getElementById('input-error-tip');
+  const errorTip = document.getElementById('input-error-tip');
+
   errorTip.textContent = '';
-  let baseSec = parseTime(input);
-  if (baseSec == null) {
+
+  const baseSec = parseTime(input);
+  if (baseSec === null) {
     errorTip.textContent = '格式錯誤，請輸入 hh:mm:ss (例: 1:50:30 或 1 50 30)';
     return;
   }
-  // 自訂重生+緩衝時間
+
   const totalSec = baseSec + reviveMin * 60 - bufferSec;
   if (totalSec <= 0) {
     errorTip.textContent = '時間需大於0！';
     return;
   }
-  addTimer(totalSec, repeatBeep);
-  document.getElementById('input-time').value = '';
-  tip.textContent = '';
-  inputTime.style.borderColor = '#ddd';
 
+  addTimer(totalSec, repeatBeep);
+
+  // 重置表單
+  document.getElementById('input-time').value = '';
+  setInputValidation(null);
 });
 </script>
 </body>
