@@ -597,7 +597,8 @@ function updateTimers() {
   const now = Date.now();
   for (let timer of timers) {
     if (timer.finished || timer.removed) continue;
-    let remain = Math.max(0, Math.round((timer.target - now)/1000));
+    let remainMs = timer.target - now;
+    let remain = remainMs > 0 ? Math.ceil(remainMs / 1000) : 0;
     timer.timeBox.textContent = `剩餘時間: ${secToHHMMSS(remain)}`;
     timer.timeBox.classList.remove('warn','expired');
     if (remain <= 0) {
@@ -605,7 +606,7 @@ function updateTimers() {
     } else if (remain <= 15) {
       timer.timeBox.classList.add('warn');
     }
-    if (remain === 0) {
+    if (remainMs <= 0 && !timer.finished) {
       timer.finished = true;
       timer.timeBox.textContent = '時間到！';
       timer.element.classList.add('finished');
