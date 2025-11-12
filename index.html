@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <title>多組倒數計時器</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      padding: 2em;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+    }
+
+    h1 {
+      color: white;
+      text-align: center;
+      font-size: 2.5em;
+      margin-bottom: 0.5em;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    .timer {
+      margin-bottom: 1.2em;
+      padding: 1.5em;
+      border: none;
+      border-radius: 20px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+      font-size: 1.6em;
+      display: flex;
+      align-items: center;
+      gap: 1em;
+      background: var(--timer-bg, linear-gradient(135deg, #f6f6ff 0%, #e9e9ff 100%));
+      position: relative;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      backdrop-filter: blur(10px);
+      animation: slideIn 0.4s ease-out;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .timer:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.2);
+    }
+
+    .timer-label {
+      font-weight: bold;
+      border-radius: 12px;
+      padding: 0.4em 1em;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      margin-right: 0.5em;
+      font-size: 0.85em;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+      min-width: 3em;
+      text-align: center;
+    }
+
+    .finished {
+      color: #d32f2f;
+      font-weight: bold;
+      background: linear-gradient(135deg, #fff5f5 0%, #ffe0e0 100%);
+      border: 2px solid #ff6b6b;
+      animation: finishPulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes finishPulse {
+      0%, 100% {
+        box-shadow: 0 8px 32px rgba(255, 107, 107, 0.3);
+      }
+      50% {
+        box-shadow: 0 8px 32px rgba(255, 107, 107, 0.6);
+      }
+    }
+
+    .timer-time {
+      font-size: 2.2em;
+      font-weight: bold;
+      transition: all 0.3s;
+      flex-grow: 1;
+      letter-spacing: 0.02em;
+    }
+
+    .timer-time.warn {
+      color: #ff9800;
+      animation: warningPulse 1s ease-in-out infinite;
+    }
+
+    @keyframes warningPulse {
+      0%, 100% {
+        opacity: 1;
+      }
+      50% {
+        opacity: 0.7;
+      }
+    }
+
+    .timer-time.expired {
+      color: #d32f2f;
+      font-size: 2.4em;
+    }
+
+    .info-box {
+      background: rgba(255, 255, 255, 0.95);
+      padding: 1em 1.5em;
+      border-radius: 16px;
+      margin-bottom: 1.5em;
+      color: #555;
+      font-size: 1.03em;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+      backdrop-filter: blur(10px);
+    }
+
+    .info-box b {
+      color: #667eea;
+    }
+
+    .info-box span {
+      background: #f0f4ff;
+      padding: 0.2em 0.5em;
+      border-radius: 6px;
+      border: 1px solid #d0d8ff;
+      font-family: 'Courier New', monospace;
+      font-weight: 600;
+    }
+
+    #add-timer-form {
+      background: rgba(255, 255, 255, 0.95);
+      padding: 1.8em;
+      border-radius: 20px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+      margin-bottom: 2em;
+      backdrop-filter: blur(10px);
+    }
+
+    #add-timer-form label {
+      display: inline-flex;
+      flex-direction: column;
+      margin-right: 1em;
+      margin-bottom: 1em;
+      color: #333;
+      font-weight: 500;
+      font-size: 0.95em;
+    }
+
+    #add-timer-form input {
+      margin-top: 0.4em;
+      padding: 0.8em 1em;
+      border: 2px solid #ddd;
+      border-radius: 12px;
+      font-size: 1.1em;
+      transition: all 0.3s;
+      background: white;
+      font-family: inherit;
+    }
+
+    #add-timer-form input:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+      transform: translateY(-2px);
+    }
+
+    #add-timer-form input[type="number"] {
+      width: 5em;
+    }
+
+    #input-time {
+      width: 18em !important;
+    }
+
+    #input-format-tip {
+      color: #888;
+      margin-left: 0.5em;
+      font-size: 0.9em;
+      margin-top: 0.3em;
+      font-weight: normal;
+    }
+
+    #input-error-tip {
+      color: #d32f2f;
+      font-size: 0.95em;
+      margin-top: 1em;
+      padding: 0.6em 1em;
+      background: #ffebee;
+      border-radius: 8px;
+      border-left: 4px solid #d32f2f;
+      display: none;
+    }
+
+    #input-error-tip:not(:empty) {
+      display: block;
+      animation: shake 0.4s;
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-8px); }
+      75% { transform: translateX(8px); }
+    }
+
+    button {
+      padding: 0.8em 2em;
+      border: none;
+      border-radius: 12px;
+      font-size: 1em;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      font-family: inherit;
+    }
+
+    button[type="submit"] {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);
+      margin-top: 0.5em;
+    }
+
+    button[type="submit"]:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 24px rgba(102, 126, 234, 0.4);
+    }
+
+    button[type="submit"]:active {
+      transform: translateY(0);
+    }
+
+    .timer button {
+      padding: 0.4em 0.8em;
+      font-size: 0.6em;
+      background: white;
+      border: 2px solid #ddd;
+      color: #666;
+    }
+
+    .timer button:hover {
+      background: #f5f5f5;
+      border-color: #bbb;
+      transform: scale(1.05);
+    }
+
+    .timer button:first-of-type {
+      font-size: 1em;
+      background: #ffebee;
+      border: 2px solid #ffcdd2;
+      color: #d32f2f;
+      width: 2.5em;
+      height: 2.5em;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+    }
+
+    .timer button:first-of-type:hover {
+      background: #ffcdd2;
+      border-color: #ef9a9a;
+    }
+
+    .replay-button {
+      background: linear-gradient(135deg, #4caf50 0%, #45a049 100%) !important;
+      color: white !important;
+      border: none !important;
+      box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+      padding: 0.6em 1.5em !important;
+      font-size: 0.7em !important;
+    }
+
+    .replay-button:hover {
+      transform: translateY(-2px) scale(1.05) !important;
+      box-shadow: 0 6px 16px rgba(76, 175, 80, 0.4) !important;
+    }
+
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🍄 多組倒數計時器</h1>
+    <div class="info-box">
+      請輸入欲倒數時間，可用 <b>hh:mm:ss</b>、<b>mm:ss</b> 或 <b>ss</b> 格式。<br>
+      完整範例如：<span>1:23:40</span>、<span>5:10</span>、<span>30</span><br>
+      系統將自動加上重生(分鐘)與緩衝(秒)。
+    </div>
+    <form id="add-timer-form">
+      <label>
+        輸入時間 (hh:mm:ss):
+        <input type="text" id="input-time" required
+          placeholder="輸入 hh:mm:ss, mm:ss 或 ss 例：1:50:30、5:10、30">
+        <span id="input-format-tip"></span>
+      </label>
+      <label>
+        重生時間(分鐘):
+        <input type="number" id="revive-time" min="0" value="5">
+      </label>
+      <label>
+        緩衝時間(秒):
+        <input type="number" id="buffer-time" min="0" value="10">
+      </label>
+      <button type="submit">➕ 加入倒數</button>
+      <div id="input-error-tip"></div>
+    </form>
+    <div id="timers"></div>
+  </div>
+<script>
+// 即時格式檢查與提示
+const inputTime = document.getElementById('input-time');
+const tip = document.getElementById('input-format-tip');
+inputTime.addEventListener('input', function() {
+  const val = inputTime.value.trim();
+  if (!val) {
+    tip.textContent = '';
+    tip.style.color = '#888';
+    inputTime.style.borderColor = '#bbb';
+    return;
+  }
+  const sec = parseTime(val);
+  if (sec === null) {
+    tip.textContent = '格式錯誤，請輸入 hh:mm:ss 或 mm:ss、ss';
+    tip.style.color = 'red';
+    inputTime.style.borderColor = 'red';
+  } else if (sec === 0) {
+    tip.textContent = '時間不可為 0';
+    tip.style.color = 'red';
+    inputTime.style.borderColor = 'red';
+  } else {
+    tip.textContent = '格式正確︰' + secToHHMMSS(sec);
+    tip.style.color = 'green';
+    inputTime.style.borderColor = 'green';
+  }
+});
+
+const timers = [];
+
+function parseTime(str) {
+  // 支援 ss, mm:ss, hh:mm:ss，自動忽略頭尾空白與非法輸入
+  const safe = str.trim().replace(/^:+|:+$/g, "");
+  const parts = safe.split(':').map(x => x.trim()).map(Number);
+  if (parts.length === 1 && !isNaN(parts[0]) && parts[0] >= 0) {
+    return parts[0];
+  } else if (parts.length === 2 && parts.every(n => !isNaN(n) && n >= 0)) {
+    return parts[0] * 60 + parts[1];
+  } else if (parts.length === 3 && parts.every(n => !isNaN(n) && n >= 0)) {
+    return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  }
+  return null;
+}
+
+
+function secToHHMMSS(sec) {
+  let h = Math.floor(sec / 3600);
+  let m = Math.floor((sec % 3600) / 60);
+  let s = sec % 60;
+  return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+function playBeep() {
+  const beepSeq = [880, 1170, 659];
+  const beepDur = 0.2, gap = 0.12;
+  try {
+    const ctx = window.AudioContext ? new AudioContext() : null;
+    if (!ctx) throw new Error();
+    let t = ctx.currentTime;
+    beepSeq.forEach(f => {
+      let osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(f, t);
+      osc.connect(ctx.destination);
+      osc.start(t);
+      osc.stop(t + beepDur);
+      t += beepDur + gap;
+    });
+  } catch(e) {
+    alert('鈴聲不支援，請自行注意時間！');
+  }
+}
+
+function addTimer(targetSec) {
+  const timerIdx = timers.length + 1;
+  const colors = [
+    'linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 100%)',
+    'linear-gradient(135deg, #fff9c4 0%, #fff59d 100%)',
+    'linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%)',
+    'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)',
+    'linear-gradient(135deg, #fce4ec 0%, #f8bbd0 100%)',
+    'linear-gradient(135deg, #f1f8e9 0%, #dcedc8 100%)'
+  ];
+  const timer = {
+    target: Date.now() + targetSec * 1000,
+    original: targetSec,
+    finished: false,
+    element: null
+    // 可擴充: id, label
+  };
+  timers.push(timer);
+
+  let elem = document.createElement('div');
+  elem.className = 'timer';
+  elem.style.setProperty('--timer-bg', colors[(timerIdx-1)%colors.length]);
+
+  // 新增標籤區塊
+  let label = document.createElement('span');
+  label.className = 'timer-label';
+  label.textContent = `#${timerIdx}`;
+  elem.appendChild(label);
+
+  // 新增移除按鈕
+  let delBtn = document.createElement('button');
+  delBtn.textContent = '✕';
+  delBtn.title = '移除計時';
+  delBtn.style.marginRight = '0.5em';
+  delBtn.onclick = function() {
+    elem.remove();
+    timer.removed = true;
+  };
+  elem.appendChild(delBtn);
+
+  let timeBox = document.createElement('span');
+  timeBox.className = 'timer-time';
+  elem.appendChild(timeBox);
+  timer.element = elem;
+  timer.timeBox = timeBox;
+  document.getElementById('timers').appendChild(elem);
+}
+
+function updateTimers() {
+  const now = Date.now();
+  for (let timer of timers) {
+    if (timer.finished) continue;
+    let remain = Math.max(0, Math.round((timer.target - now)/1000));
+    timer.timeBox.textContent = `剩餘時間: ${secToHHMMSS(remain)}`;
+    timer.timeBox.classList.remove('warn','expired');
+    if (remain <= 0) {
+      timer.timeBox.classList.add('expired');
+    } else if (remain <= 15) {
+      timer.timeBox.classList.add('warn');
+    }
+    if (remain === 0) {
+      timer.finished = true;
+      timer.timeBox.textContent = '時間到！';
+      timer.element.classList.add('finished');
+      timer.element.style.animation = 'flashBg 1.2s linear 2';
+      playBeep();
+      // 跳出瀏覽器通知提醒
+      if (window.Notification) {
+        if (Notification.permission === 'granted') {
+          new Notification(`第${Array.from(document.querySelectorAll('.timer')).indexOf(timer.element)+1}組計時已結束！`, {
+            body: '請注意進度或執行操作',
+            icon: '' // 可自訂 icon
+          });
+        } else if (Notification.permission !== 'denied') {
+          Notification.requestPermission().then(function(p) {
+            if (p === 'granted') {
+              new Notification(`第${Array.from(document.querySelectorAll('.timer')).indexOf(timer.element)+1}組計時已結束！`, {
+                body: '請注意進度或執行操作',
+                icon: ''
+              });
+            }
+          });
+        }
+      }
+      // 新增重播鈴聲按鈕
+      let btn = document.createElement('button');
+      btn.textContent = '🔔 重播鈴聲';
+      btn.className = 'replay-button';
+      btn.style.marginLeft = '1em';
+      btn.onclick = playBeep;
+      timer.element.appendChild(btn);
+    }
+  }
+}
+
+setInterval(updateTimers, 250);
+
+document.getElementById('add-timer-form').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const input = document.getElementById('input-time').value;
+  const reviveMin = Number(document.getElementById('revive-time').value) || 0;
+  const bufferSec = Number(document.getElementById('buffer-time').value) || 0;
+  let errorTip = document.getElementById('input-error-tip');
+  errorTip.textContent = '';
+  let baseSec = parseTime(input);
+  if (baseSec == null) {
+    errorTip.textContent = '格式錯誤，請輸入 hh:mm:ss (例: 1:50:30)';
+    return;
+  }
+  // 自訂重生+緩衝時間
+  const totalSec = baseSec + reviveMin * 60 - bufferSec;
+  if (totalSec <= 0) {
+    errorTip.textContent = '時間需大於0！';
+    return;
+  }
+  addTimer(totalSec);
+  document.getElementById('input-time').value = '';
+
+});
+</script>
+</body>
+</html>
